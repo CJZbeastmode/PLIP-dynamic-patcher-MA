@@ -1,0 +1,11 @@
+torch
+transformers
+faiss-cpu
+opencv-python
+numpy
+Pillow
+beautifulsoup4
+scikit-image
+openslide-python
+tqdm
+requests
