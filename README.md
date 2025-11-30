@@ -14,5 +14,3 @@ python -m rl        # original entrypoint (keeps using src/ modules)
 # or run scripts explicitly
 python scripts/build_faiss_txt.py
 ```
-
-If you want a proper package layout for development, consider moving code from `src/` into `src/ma/` and updating imports; I can do that next if you want.
