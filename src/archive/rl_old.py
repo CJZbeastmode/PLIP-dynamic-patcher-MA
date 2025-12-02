@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from torch import optim
 
 from wsi import WSI
-from faiss.faiss_util import FAISS
+from faiss_util.faiss_util import FAISS
 from dynamic_patch_env import DynamicPatchEnv
 from model_actor_critic import ActorCritic
 from downloader.image_downloader import ImageDownloader

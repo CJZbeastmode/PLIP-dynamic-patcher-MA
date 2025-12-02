@@ -209,9 +209,6 @@ class MaxDifferenceInfoReward(RewardModule):
         return self.weight * (1.0 - min_sim)
 
 
-
-
-
 class EntropyGainReward(RewardModule):
     r"""
     Mean entropy gain:

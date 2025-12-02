@@ -54,50 +54,50 @@ embedder = EmbeddingComputer(
 # ============================================================
 
 infogain_only = RewardEngine([
-    InfoGainReward(weight=10, embedder=embedder),
-    PatchCost(cost=0.001),
+    InfoGainReward(weight=3, embedder=embedder),
+    PatchCost(cost=0.005),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
 info_gain_max_difference_only = RewardEngine([
-    MaxDifferenceInfoReward(weight=10, embedder=embedder),
-    PatchCost(cost=0.001),
+    MaxDifferenceInfoReward(weight=3, embedder=embedder),
+    PatchCost(cost=0.005),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
 info_gain_max_range_only = RewardEngine([
-    MaxDifferenceRangeInfoReward(weight=10, embedder=embedder),
-    PatchCost(cost=0.001),
+    MaxDifferenceRangeInfoReward(weight=3, embedder=embedder),
+    PatchCost(cost=0.005),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
 cos_sim_only = RewardEngine([
-    CosineSimilarityReward(weight=10, embedder=embedder),
-    PatchCost(cost=0.001),
+    CosineSimilarityReward(weight=3, embedder=embedder),
+    PatchCost(cost=0.005),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
 entropy_only = RewardEngine([
-    EntropyGainReward(weight=8),
-    PatchCost(cost=0.001),
+    EntropyGainReward(weight=3),
+    PatchCost(cost=0.005),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
 max_entropy_only = RewardEngine([
-    MaxEntropyGainReward(weight=10),
-    PatchCost(cost=0.001),
+    MaxEntropyGainReward(weight=3),
+    PatchCost(cost=0.005),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
 text_align_only = RewardEngine([
-    TextAlignReward(weight=12, embedder=embedder),
-    PatchCost(cost=0.001),
+    TextAlignReward(weight=6, embedder=embedder),
+    PatchCost(cost=0.005),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
 text_align_fixed_embedding_only = RewardEngine([
-    TextAlignFixedEmbeddingReward(weight=12, embedder=embedder),
-    PatchCost(cost=0.001),
+    TextAlignFixedEmbeddingReward(weight=6, embedder=embedder),
+    PatchCost(cost=0.005),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
@@ -107,58 +107,58 @@ text_align_fixed_embedding_only = RewardEngine([
 # ============================================================
 
 infogain_only_depth = RewardEngine([
-    InfoGainReward(weight=10, embedder=embedder),
-    PatchCost(cost=0.001),
-    DepthPenalty(weight=0.005),
+    InfoGainReward(weight=3, embedder=embedder),
+    PatchCost(cost=0.005),
+    DepthPenalty(weight=0.003),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
 info_gain_max_difference_only_depth = RewardEngine([
-    MaxDifferenceInfoReward(weight=10, embedder=embedder),
-    PatchCost(cost=0.001),
-    DepthPenalty(weight=0.005),
+    MaxDifferenceInfoReward(weight=3, embedder=embedder),
+    PatchCost(cost=0.005),
+    DepthPenalty(weight=0.003),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
 info_gain_max_range_only_depth = RewardEngine([
-    MaxDifferenceRangeInfoReward(weight=10, embedder=embedder),
-    PatchCost(cost=0.001),
-    DepthPenalty(weight=0.005),
+    MaxDifferenceRangeInfoReward(weight=3, embedder=embedder),
+    PatchCost(cost=0.005),
+    DepthPenalty(weight=0.003),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
 cos_sim_only_depth = RewardEngine([
-    CosineSimilarityReward(weight=10, embedder=embedder),
-    PatchCost(cost=0.001),
-    DepthPenalty(weight=0.005),
+    CosineSimilarityReward(weight=3, embedder=embedder),
+    PatchCost(cost=0.005),
+    DepthPenalty(weight=0.003),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
 entropy_only_depth = RewardEngine([
-    EntropyGainReward(weight=8),
-    PatchCost(cost=0.001),
-    DepthPenalty(weight=0.005),
+    EntropyGainReward(weight=3),
+    PatchCost(cost=0.005),
+    DepthPenalty(weight=0.003),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
 max_entropy_only_depth = RewardEngine([
-    MaxEntropyGainReward(weight=10),
-    PatchCost(cost=0.001),
-    DepthPenalty(weight=0.005),
+    MaxEntropyGainReward(weight=3),
+    PatchCost(cost=0.005),
+    DepthPenalty(weight=0.003),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
 text_align_only_depth = RewardEngine([
-    TextAlignReward(weight=12, embedder=embedder),
-    PatchCost(cost=0.001),
-    DepthPenalty(weight=0.005),
+    TextAlignReward(weight=6, embedder=embedder),
+    PatchCost(cost=0.005),
+    DepthPenalty(weight=0.003),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
 text_align_fixed_embedding_only_depth = RewardEngine([
-    TextAlignFixedEmbeddingReward(weight=12, embedder=embedder),
-    PatchCost(cost=0.001),
-    DepthPenalty(weight=0.005),
+    TextAlignFixedEmbeddingReward(weight=6, embedder=embedder),
+    PatchCost(cost=0.005),
+    DepthPenalty(weight=0.003),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
@@ -207,17 +207,17 @@ ablation_no_multimodal = RewardEngine([
 # ============================================================
 
 vision_contrast = RewardEngine([
-    MaxDifferenceRangeInfoReward(weight=10, embedder=embedder),
-    EntropyGainReward(weight=3),
-    TissuePresenceReward(weight=2),
-    PatchCost(cost=0.001),
+    MaxDifferenceRangeInfoReward(weight=4, embedder=embedder),
+    EntropyGainReward(weight=2),
+    TissuePresenceReward(weight=1.5),
+    PatchCost(cost=0.005),
 ])
 
 vision_structural = RewardEngine([
-    MaxEntropyGainReward(weight=8),
-    TissuePresenceReward(weight=3),
-    PatchCost(cost=0.002),
-    DepthPenalty(weight=0.01),
+    MaxEntropyGainReward(weight=4),
+    TissuePresenceReward(weight=2),
+    PatchCost(cost=0.007),
+    DepthPenalty(weight=0.003),
 ])
 
 
@@ -226,25 +226,25 @@ vision_structural = RewardEngine([
 # ============================================================
 
 multimodal_text_driven = RewardEngine([
-    TextAlignReward(weight=12, embedder=embedder),
-    SemanticSurpriseReward(weight=4, embedder=embedder),
-    PatchCost(cost=0.002),
-    StopPenalty(penalty=0.2, embedder=embedder),
+    TextAlignReward(weight=7, embedder=embedder),
+    SemanticSurpriseReward(weight=2, embedder=embedder),
+    PatchCost(cost=0.005),
+    StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
 multimodal_entropy = RewardEngine([
-    MaxEntropyGainReward(weight=5),
-    TextAlignReward(weight=10, embedder=embedder),
-    TissuePresenceReward(weight=2),
-    PatchCost(cost=0.002),
+    MaxEntropyGainReward(weight=3),
+    TextAlignReward(weight=6, embedder=embedder),
+    TissuePresenceReward(weight=1.5),
+    PatchCost(cost=0.005),
 ])
 
 multimodal_with_vision = RewardEngine([
-    InfoGainReward(weight=6, embedder=embedder),
-    TextAlignReward(weight=8, embedder=embedder),
-    SemanticSurpriseReward(weight=3, embedder=embedder),
+    InfoGainReward(weight=3, embedder=embedder),
+    TextAlignReward(weight=5, embedder=embedder),
+    SemanticSurpriseReward(weight=1.5, embedder=embedder),
     TissuePresenceReward(weight=1),
-    PatchCost(cost=0.002),
+    PatchCost(cost=0.005),
 ])
 
 
@@ -253,34 +253,34 @@ multimodal_with_vision = RewardEngine([
 # ============================================================
 
 balanced_standard = RewardEngine([
-    InfoGainReward(weight=7, embedder=embedder),
-    TextAlignReward(weight=5, embedder=embedder),
-    TissuePresenceReward(weight=2),
-    PatchCost(cost=0.002),
+    InfoGainReward(weight=4, embedder=embedder),
+    TextAlignReward(weight=3, embedder=embedder),
+    TissuePresenceReward(weight=1.5),
+    PatchCost(cost=0.005),
     StopPenalty(penalty=0.25, embedder=embedder),
-    DepthPenalty(weight=0.01),
+    DepthPenalty(weight=0.003),
     InvalidPatchPenalty(penalty=1),
 ])
 
 balanced_comprehensive = RewardEngine([
-    InfoGainReward(weight=6, embedder=embedder),
-    TextAlignReward(weight=7, embedder=embedder),
-    SemanticSurpriseReward(weight=2, embedder=embedder),
-    EntropyGainReward(weight=2),
-    TissuePresenceReward(weight=1.5),
-    PatchCost(cost=0.002),
+    InfoGainReward(weight=3, embedder=embedder),
+    TextAlignReward(weight=4, embedder=embedder),
+    SemanticSurpriseReward(weight=1.5, embedder=embedder),
+    EntropyGainReward(weight=1.5),
+    TissuePresenceReward(weight=1),
+    PatchCost(cost=0.005),
     StopPenalty(penalty=0.25, embedder=embedder),
-    DepthPenalty(weight=0.01),
-    ZoomBudgetPenalty(weight=0.5, budget=4),
+    DepthPenalty(weight=0.003),
+    ZoomBudgetPenalty(weight=0.3, budget=4),
     InvalidPatchPenalty(penalty=1),
 ])
 
 balanced_diversity = RewardEngine([
-    MaxDifferenceRangeInfoReward(weight=8, embedder=embedder),
-    MaxEntropyGainReward(weight=4),
-    TextAlignReward(weight=6, embedder=embedder),
-    TissuePresenceReward(weight=2),
-    PatchCost(cost=0.002),
+    MaxDifferenceRangeInfoReward(weight=4, embedder=embedder),
+    MaxEntropyGainReward(weight=2),
+    TextAlignReward(weight=4, embedder=embedder),
+    TissuePresenceReward(weight=1.5),
+    PatchCost(cost=0.005),
     StopPenalty(penalty=0.25, embedder=embedder),
 ])
 
@@ -335,16 +335,6 @@ ENGINES = {
     "text_align_only_depth": text_align_only_depth,
     "text_align_fixed_embedding_only_depth": text_align_fixed_embedding_only_depth,
 
-    # Ablation
-    "ablation_infogain_only": ablation_infogain_only,
-    "ablation_max_difference_only": ablation_max_difference_only,
-    "ablation_cosine_range_only": ablation_cosine_range_only,
-    "ablation_entropy_only": ablation_entropy_only,
-    "ablation_max_entropy_only": ablation_max_entropy_only,
-    "ablation_text_align_only": ablation_text_align_only,
-    "ablation_no_vision": ablation_no_vision,
-    "ablation_no_multimodal": ablation_no_multimodal,
-
     # Vision
     "vision_contrast": vision_contrast,
     "vision_structural": vision_structural,
@@ -363,4 +353,14 @@ ENGINES = {
     "depth_limited": depth_limited,
     "fast_exploration": fast_exploration,
     "quality_assurance": quality_assurance,
+
+    # Ablation
+    "ablation_infogain_only": ablation_infogain_only,
+    "ablation_max_difference_only": ablation_max_difference_only,
+    "ablation_cosine_range_only": ablation_cosine_range_only,
+    "ablation_entropy_only": ablation_entropy_only,
+    "ablation_max_entropy_only": ablation_max_entropy_only,
+    "ablation_text_align_only": ablation_text_align_only,
+    "ablation_no_vision": ablation_no_vision,
+    "ablation_no_multimodal": ablation_no_multimodal,
 }

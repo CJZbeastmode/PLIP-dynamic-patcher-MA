@@ -20,7 +20,7 @@ from ma.text_downloader import TextDownloader
 # NEW: imports for PLIP + embedding
 from transformers import CLIPModel, CLIPProcessor
 from ma.reward_module import EmbeddingComputer
-from ma.rewards import full_vision_reward_engine
+from ma.rewards import infogain_only, info_gain_max_difference_only, info_gain_max_range_only, cos_sim_only, entropy_only, max_entropy_only, text_align_only, text_align_fixed_embedding_only
 
 
 # ========================================================
@@ -37,6 +37,8 @@ embedder = EmbeddingComputer(
     faiss=None,
     text_embed=None
 )
+
+reward_engine = infogain_only
 
 
 # ========================================================
@@ -116,11 +118,11 @@ embedder.faiss = fa
 wsi = WSI(EXAMPLE_IMAGE)
 
 # Assign embedder to reward modules
-for module in full_vision_reward_engine.modules:
+for module in reward_engine.modules:
     if hasattr(module, "embedder"):
         module.embedder = embedder
 
-env = DynamicPatchEnv(wsi, reward_engine=full_vision_reward_engine)
+env = DynamicPatchEnv(wsi, reward_engine=reward_engine)
 
 s0 = env.reset()
 state_dim = len(s0)
@@ -198,11 +200,11 @@ for epoch in range(1, EPOCHS + 1):
         wsi = WSI(image)
 
         # Assign embedder to reward modules (important for each new WSI)
-        for module in full_vision_reward_engine.modules:
+        for module in reward_engine.modules:
             if hasattr(module, "embedder"):
                 module.embedder = embedder
 
-        env = DynamicPatchEnv(wsi, reward_engine=full_vision_reward_engine)
+        env = DynamicPatchEnv(wsi, reward_engine=reward_engine)
 
         # 3. Train on this WSI
         for _ in range(EPISODES_PER_WSI):

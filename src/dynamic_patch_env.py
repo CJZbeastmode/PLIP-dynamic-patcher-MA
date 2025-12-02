@@ -189,6 +189,7 @@ class DynamicPatchEnv:
         #
         #   If you want RL to choose child among 4 options:
         #       I can extend action space for you.
+        # TODO: FIX 0
         # ---------------------------------------------------
         idx = 0
         self.curr_level = child_level

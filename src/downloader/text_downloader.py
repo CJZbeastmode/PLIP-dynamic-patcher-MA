@@ -5,7 +5,7 @@ import requests
 import numpy as np
 from tqdm import tqdm
 from bs4 import BeautifulSoup
-import faiss
+import faiss_util
 
 import torch
 from transformers import CLIPProcessor, CLIPModel
@@ -186,12 +186,12 @@ class TextDownloader:
         # Build FAISS index
         # =====================================================================
         dim = embeddings.shape[1]
-        index = faiss.IndexFlatIP(dim)
+        index = faiss_util.IndexFlatIP(dim)
         index.add(embeddings)
         print(f"Indexed {index.ntotal} embeddings (dim={dim}).")
 
         # Save index + file references
-        faiss.write_index(index, output_index)
+        faiss_util.write_index(index, output_index)
         np.save(output_paths, np.array(file_refs))
 
         print(f"Saved FAISS index → {output_index}")

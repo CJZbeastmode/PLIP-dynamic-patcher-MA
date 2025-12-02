@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import sys
+import argparse
 """Simplified training script.
 
 Adds src to sys.path for local imports.
@@ -15,7 +16,7 @@ import torch.nn.functional as F
 from torch import optim
 
 from wsi import WSI
-FAISS = None  # Removed dynamic FAISS loading
+from faiss_util.faiss_util import FAISS 
 from dynamic_patch_env import DynamicPatchEnv
 from model_actor_critic import ActorCritic
 from downloader.image_downloader import ImageDownloader
@@ -91,38 +92,97 @@ TCGA_KEYWORDS = {
 
 
 # ========================================================
+# Parse command-line arguments
+# ========================================================
+parser = argparse.ArgumentParser(description="RL training script for WSI patch navigation")
+parser.add_argument(
+    "--trained-images-config-path",
+    type=str,
+    default="data/trained_images.txt",
+    help="Path to file containing training image paths (one per line)"
+)
+parser.add_argument(
+    "--trained-images-prefix",
+    type=str,
+    default="data/images/",
+    help="Prefix to prepend to each training image filename"
+)
+parser.add_argument(
+    "--episodes-per-wsi",
+    type=int,
+    default=5,
+    help="Number of episodes to run per WSI image"
+)
+parser.add_argument(
+    "--epochs",
+    type=int,
+    default=5,
+    help="Number of training epochs"
+)
+parser.add_argument(
+    "--faiss-index",
+    type=str,
+    default="data/faiss/txt_index.faiss",
+    help="Path to FAISS index file"
+)
+parser.add_argument(
+    "--faiss-texts",
+    type=str,
+    default="data/faiss/filenames.npy",
+    help="Path to FAISS text filenames file"
+)
+parser.add_argument(
+    "--reward-engine",
+    type=str,
+    default="infogain_only",
+    help="Name of the reward engine to use from ENGINES catalog"
+)
+args = parser.parse_args()
+
+# ========================================================
 # Config
 # ========================================================
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 
-EXAMPLE_IMAGE = "data/image/test_img_1.svs"
-TRAIN_IMAGES = [
-    "data/image/test_img_1.svs",
-    "data/image/test_img_2.svs",
-    "data/image/test_img_3.svs",
-]
-INDEX = "data/faiss/txt_index.faiss"  # retained for reference
-TEXTS = "data/faiss/filenames.npy"
+EXAMPLE_IMAGE = "data/example_images/test_img_1.svs"
 
-EPISODES_PER_WSI = 3 #50
-EPOCHS = 300
+# Load training images from file
+TRAINED_IMAGE_CONFIG_FILE = args.trained_images_config_path
+TRAINED_IMAGES_PREFIX = args.trained_images_prefix
+if os.path.exists(TRAINED_IMAGE_CONFIG_FILE):
+    with open(TRAINED_IMAGE_CONFIG_FILE, 'r') as f:
+        TRAIN_IMAGES = [(TRAINED_IMAGES_PREFIX + line.strip()) for line in f if line.strip()]
+    TRAIN_IMAGES_COUNT = len(TRAIN_IMAGES)
+    if not TRAIN_IMAGES:
+        # Fallback to backup if file is empty
+        raise ValueError("Trained images file is empty.")
+else:
+    raise FileNotFoundError(f"{TRAINED_IMAGE_CONFIG_FILE} not found.")
+
+FAISS_INDEX = args.faiss_index
+FAISS_TEXTS = args.faiss_texts
+
+EPISODES_PER_WSI = args.episodes_per_wsi
+EPOCHS = args.epochs
 GAMMA = 0.99
 LR = 3e-4
-ENTROPY_BETA = 0.05
+ENTROPY_BETA = 0.1
 
 
 # ========================================================
 # Load FAISS + ENV SETUP
 # ========================================================
 # Skip FAISS loading (environment lacks required methods)
-embedder.faiss = None
-
+faiss = FAISS(FAISS_INDEX, FAISS_TEXTS)
+embedder.faiss = faiss
 
 # Precompute state dimension
 wsi = WSI(EXAMPLE_IMAGE)
 
 # Select a default engine from catalog
-reward_engine = ENGINES.get("infogain_only")
+reward_engine = ENGINES.get(args.reward_engine)
+if reward_engine is None:
+    raise ValueError(f"Reward engine '{args.reward_engine}' not found in ENGINES catalog. Available: {list(ENGINES.keys())}")
 
 # Assign embedder to reward modules
 for module in reward_engine.modules:
@@ -145,6 +205,14 @@ optimizer = optim.Adam(model.parameters(), lr=LR)
 # ========================================================
 # Functions
 # ========================================================
+def safe_norm(x):
+    x = torch.nan_to_num(x, nan=0.0)
+    std = x.std()
+    if std < 1e-6 or not torch.isfinite(std):
+        return x - x.mean()
+    return (x - x.mean()) / (std + 1e-8)
+
+
 def compute_returns(rewards, gamma=0.99):
     G = 0.0
     out = []
@@ -158,6 +226,7 @@ def run_episode(env, model, optimizer):
     logps = []
     values = []
     rewards = []
+    entropies = []
 
     state = env.reset()
     done = False
@@ -173,20 +242,26 @@ def run_episode(env, model, optimizer):
         logps.append(dist.log_prob(action))
         values.append(value.squeeze())
         rewards.append(reward)
+        entropies.append(dist.entropy())
         state = next_state if not done else None
 
-    returns = compute_returns(rewards, GAMMA)
+    returns = safe_norm(compute_returns(rewards, GAMMA))
+
     values = torch.stack(values)
     logps = torch.stack(logps)
-    advantages = returns - values.detach()
+    entropy = torch.stack(entropies).mean()
 
-    entropy = dist.entropy().mean()
+    advantages = safe_norm(returns - values.detach())
+
     policy_loss = -(logps * advantages).mean()
     value_loss = F.mse_loss(values, returns)
     loss = policy_loss + 0.5 * value_loss - ENTROPY_BETA * entropy
 
     optimizer.zero_grad()
     loss.backward()
+
+    torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+
     optimizer.step()
 
     print(f"loss: {loss}")
@@ -227,5 +302,8 @@ for epoch in range(1, EPOCHS + 1):
 # ========================================================
 # Save model
 # ========================================================
-torch.save(model.state_dict(), "data/model/dynamic_patch_rl.pt")
-print("Saved data/model/dynamic_patch_rl.pt")
+OUTPUT_PT_FILEPREFIX = "data/model/"
+OUTPUT_PT_FILENAME = f"{OUTPUT_PT_FILEPREFIX}rewardEngine={args.reward_engine}/img-count={TRAIN_IMAGES_COUNT}/episodes-per-wsi={EPISODES_PER_WSI}/epoch={EPOCHS}/model.pt"
+
+torch.save(model.state_dict(), OUTPUT_PT_FILENAME)
+print(f"Saved {OUTPUT_PT_FILENAME}")

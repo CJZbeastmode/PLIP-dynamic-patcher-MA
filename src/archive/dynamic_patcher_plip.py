@@ -4,7 +4,7 @@ import numpy as np
 import os
 from transformers import CLIPProcessor, CLIPModel
 from wsi import WSI
-from faiss.faiss_util import FAISS
+from faiss_util.faiss_util import FAISS
 
 
 # Directories

@@ -1,5 +1,5 @@
 # pip install faiss-cpu beautifulsoup4 transformers torch numpy
-import faiss.faiss_util as faiss_util
+import faiss_util.faiss_util as faiss_util
 import numpy as np
 from bs4 import BeautifulSoup
 from transformers import CLIPProcessor, CLIPModel
