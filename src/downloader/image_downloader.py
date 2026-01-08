@@ -1,127 +1,165 @@
 import requests
-import random
 import os
-from collections import defaultdict
+from decimal import Decimal, ROUND_HALF_UP
+import json
+import time
+
+FIELDS = "cases.submitter_id,cases.project.project_id"
+GDC_FILES_ENDPOINT = "https://api.gdc.cancer.gov/files"
+GDC_DATA_ENDPOINT = "https://api.gdc.cancer.gov/data"
+DATA_DIR = "/Volumes/Xbox_HD/data/med_img"
+FILE_EXT = ".svs"
+
+NORMAL_PROJECTS = [
+    "TCGA-COAD",
+    "TCGA-READ",
+    "TCGA-ESCA",
+    "TCGA-STAD",
+    "TCGA-LUAD",
+    "TCGA-LUSC",
+    "TCGA-MESO",
+    "TCGA-CHOL",
+    "TCGA-LIHC",
+    "TCGA-PAAD",
+    "TCGA-UVM",
+    "TCGA-SKCM",
+]
+
+RARE_PROJECTS = ["TCGA-COAD", "TCGA-READ"]
 
 
 class ImageDownloader:
-    GDC_FILES_ENDPOINT = "https://api.gdc.cancer.gov/files"
-    GDC_DATA_ENDPOINT = "https://api.gdc.cancer.gov/data"
-    FIELDS = "file_id,file_name,cases.submitter_id"
-
-    def __init__(self, proportions, target_total=500, out_dir="tcga_wsis"):
-        """
-        proportions: dict { "TCGA-COAD": proportion_float, ... }
-        target_total: desired total number of WSIs
-        out_dir: output directory
-        """
-        self.proportions = proportions
+    def __init__(
+        self,
+        target_total=1000,
+        proportions=None,
+        image_count=None,
+        fetched_images=None,
+        fetched_images_output_json=None,
+        PROJECTS=NORMAL_PROJECTS,
+        GDC_FILES_ENDPOINT=GDC_FILES_ENDPOINT,
+        GDC_DATA_ENDPOINT=GDC_DATA_ENDPOINT,
+        DATA_DIR=DATA_DIR,
+        FILE_EXT=FILE_EXT,
+    ):
+        self.PROJECTS = PROJECTS
         self.target_total = target_total
-        self.out_dir = out_dir
+        self.proportions = proportions
+        self.image_counts = image_count
+        self.fetched_images = fetched_images
+        self.fetched_images_output_json = fetched_images_output_json
+        self.GDC_FILES_ENDPOINT = GDC_FILES_ENDPOINT
+        self.GDC_DATA_ENDPOINT = GDC_DATA_ENDPOINT
+        self.DATA_DIR = DATA_DIR
+        self.FILE_EXT = FILE_EXT
 
-        os.makedirs(self.out_dir, exist_ok=True)
+    # ---------------------------------------------------------
+    # Helpers
+    # ---------------------------------------------------------
+    def _existing_cases_on_disk(self):
+        cases = set()
+        for fname in os.listdir(DATA_DIR):
+            if not fname.endswith(FILE_EXT):
+                continue
+            name = fname[: -len(FILE_EXT)]
+            parts = name.split("-")
+            if len(parts) >= 3:
+                case_id = "-".join(parts[:3])
+                cases.add(case_id)
+        return cases
 
-        self.target_counts = self._compute_target_counts()
-        self.selected_cases = {}  # case_id → (file_id, file_name, project)
-
-    def _compute_target_counts(self):
-        sum_prop = sum(self.proportions.values())
-        return {
-            proj: int((p / sum_prop) * self.target_total)
-            for proj, p in self.proportions.items()
-        }
-
-    def print_target_counts(self):
-        print("Target samples per project:")
-        for k, v in self.target_counts.items():
-            print(f"{k}: {v}")
-
-    # Quering
-    def query_project(self, project_id):
+    def _query_tcga_cases(self, project_id):
+        fields = "cases.submitter_id,cases.project.project_id"
         payload = {
             "filters": {
                 "op": "and",
                 "content": [
-                    {"op": "=", "content": {"field": "cases.project.project_id", "value": project_id}},
-                    {"op": "=", "content": {"field": "data_type", "value": "Slide Image"}},
-                    {"op": "in", "content": {"field": "data_format", "value": ["SVS"]}},
-                ]
+                    {
+                        "op": "=",
+                        "content": {
+                            "field": "cases.project.project_id",
+                            "value": project_id,
+                        },
+                    },
+                    {
+                        "op": "=",
+                        "content": {
+                            "field": "data_type",
+                            "value": "Slide Image",
+                        },
+                    },
+                    {
+                        "op": "in",
+                        "content": {
+                            "field": "data_format",
+                            "value": ["SVS"],
+                        },
+                    },
+                ],
             },
-            "fields": self.FIELDS,
+            "fields": fields,
             "format": "JSON",
-            "size": 5000
+            "size": 20000,  # large enough for all WSIs
         }
 
         r = requests.post(self.GDC_FILES_ENDPOINT, json=payload)
         r.raise_for_status()
-        data = r.json()["data"]["hits"]
 
-        entries = []
-        for item in data:
-            case_id = item["cases"][0]["submitter_id"]
-            file_id = item["file_id"]
-            file_name = item["file_name"]
-            entries.append((case_id, file_id, file_name))
-        return entries
+        hits = r.json()["data"]["hits"]
 
-    # Sampling
-    def sample_cases(self):
-        selected = {}
+        # Deduplicate by case ID
+        cases = set()
+        for item in hits:
+            for case in item["cases"]:
+                cases.add(case["submitter_id"])
 
-        for project, n_target in self.target_counts.items():
-            print(f"\nQuerying project: {project}")
-            entries = self.query_project(project)
+        return sorted(cases)
 
-            # Deduplicate by case ID
-            by_case = {}
-            for case_id, file_id, file_name in entries:
-                if case_id not in by_case:
-                    by_case[case_id] = (file_id, file_name)
-
-            case_ids = list(by_case.keys())
-            random.shuffle(case_ids)
-
-            take = min(len(case_ids), n_target)
-            case_ids = case_ids[:take]
-
-            for cid in case_ids:
-                file_id, file_name = by_case[cid]
-                selected[cid] = (file_id, file_name, project)
-
-        # Adjust if more than target_total
-        if len(selected) > self.target_total:
-            excess = len(selected) - self.target_total
-            print(f"\nTrimming {excess} cases to reach EXACT {self.target_total}")
-            keys_to_trim = list(selected.keys())[:excess]
-            for k in keys_to_trim:
-                del selected[k]
-
-        self.selected_cases = selected
-        print("\nFinal selected cases:", len(self.selected_cases))
-
-    # Shuffling
-    def shuffled_case_list(self):
+    def _query_svs_for_case(self, case_id):
         """
-        Returns a *shuffled list* of all selected cases.
-        Format of each item:
-        (case_id, file_id, file_name, project)
+        Return a list of (file_id, file_name) for SVS slides of a TCGA case.
         """
-        items = [
-            (cid, *self.selected_cases[cid])
-            for cid in self.selected_cases
-        ]
-        random.shuffle(items)
-        return items
-    
-    # Download
-    def download_one(self, cid, file_id):
-        """
-        Download a single WSI to a temporary file and return its path.
-        """
+        fields = "file_id,file_name,cases.submitter_id"
+        payload = {
+            "filters": {
+                "op": "and",
+                "content": [
+                    {
+                        "op": "=",
+                        "content": {
+                            "field": "cases.submitter_id",
+                            "value": case_id,
+                        },
+                    },
+                    {
+                        "op": "=",
+                        "content": {
+                            "field": "data_type",
+                            "value": "Slide Image",
+                        },
+                    },
+                    {
+                        "op": "in",
+                        "content": {
+                            "field": "data_format",
+                            "value": ["SVS"],
+                        },
+                    },
+                ],
+            },
+            "fields": fields,
+            "format": "JSON",
+            "size": 100,
+        }
+
+        r = requests.post(self.GDC_FILES_ENDPOINT, json=payload)
+        r.raise_for_status()
+
+        hits = r.json()["data"]["hits"]
+        return [(h["file_id"], h["file_name"]) for h in hits]
+
+    def _download_file(self, file_id, out_path):
         url = f"{self.GDC_DATA_ENDPOINT}/{file_id}"
-        out_path = os.path.join(self.out_dir, f"{cid}.svs")
-
-        print(f"Downloading {cid} → {out_path}")
         with requests.get(url, stream=True) as r:
             r.raise_for_status()
             with open(out_path, "wb") as f:
@@ -129,86 +167,169 @@ class ImageDownloader:
                     if chunk:
                         f.write(chunk)
 
-        return out_path
+    # ---------------------------------------------------------
+    # Calculate Image Proportions
+    # ---------------------------------------------------------
+    def calc_img_proportions(self):
+        case_counts = {}
+        all_cases = set()
 
-    def download_all(self):
-        print("\nStarting downloads...")
-        for cid, (fid, fname, proj) in self.selected_cases.items():
-            out_path = os.path.join(self.out_dir, f"{cid}.svs")
-            
-            # Skip if already downloaded
-            if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
-                print(f"Skipping (already exists): {proj} {cid}")
-                continue
+        print("Querying TCGA projects...\n")
 
-            print(f"Downloading {proj}: {cid} → {out_path}")
-            url = f"{self.GDC_DATA_ENDPOINT}/{fid}"
-            with requests.get(url, stream=True) as r:
-                r.raise_for_status()
-                with open(out_path, "wb") as f:
-                    for chunk in r.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
+        for proj in self.PROJECTS:
+            cases = self._query_tcga_cases(proj)
+            case_counts[proj] = len(cases)
+            all_cases |= set(cases)
+            print(f"{proj}: {len(cases)} cases")
 
-        print("\nDONE. All slides stored in:", self.out_dir)
+        total_cases = sum(case_counts.values())
 
+        print("\nTotal unique cases (sum of projects):", total_cases)
 
-    # Iterator
-    def __iter__(self):
-        """
-        Iterator over selected TCGA cases.
-        Yields tuples: (case_id, file_id, file_name, project)
-        """
-        for cid, (fid, fname, proj) in self.selected_cases.items():
-            yield cid, fid, fname, proj
+        # Compute proportions
+        proportions = {proj: count / total_cases for proj, count in case_counts.items()}
 
-    def missing_cases(self):
-        missing = []
-        for cid, (fid, fname, proj) in self.selected_cases.items():
-            out_path = os.path.join(self.out_dir, f"{cid}.svs")
-            if not (os.path.exists(out_path) and os.path.getsize(out_path) > 0):
-                missing.append((cid, fid, fname, proj))
-        return missing
+        print("\nPROPORTIONS = {")
+        for proj in sorted(proportions):
+            print(f'    "{proj}": {proportions[proj]:.6f},')
+        print("}")
 
-    def continue_download(self):
-        todo = self.missing_cases()
-        print(f"\nMissing files: {len(todo)}")
+        # Sanity check
+        s = sum(proportions.values())
+        print(f"\nSum of proportions: {s:.8f}")
 
-        for cid, fid, fname, proj in todo:
-            out_path = os.path.join(self.out_dir, f"{cid}.svs")
-            url = f"{self.GDC_DATA_ENDPOINT}/{fid}"
-
-            print(f"Continuing download: {proj} {cid} → {out_path}")
-
-            try:
-                with requests.get(url, stream=True, timeout=30) as r:
-                    r.raise_for_status()
-                    with open(out_path, "wb") as f:
-                        for chunk in r.iter_content(chunk_size=8192):
-                            if chunk:
-                                f.write(chunk)
-
-            except Exception as e:
-                print(f"  ERROR downloading {cid} ({proj}): {e}")
-
-                # Delete partial file if it exists
-                if os.path.exists(out_path):
-                    try:
-                        os.remove(out_path)
-                        print("  Partial file removed.")
-                    except Exception as del_err:
-                        print(f"  Could not remove partial file: {del_err}")
-
-                print("  Skipping.\n")
-                continue
-
-        print("\nCONTINUE DONE.")
-
+        self.proportions = proportions
+        return proportions
 
     # ---------------------------------------------------------
-    # FULL PIPELINE
+    # Query Images
+    # ---------------------------------------------------------
+    def calc_img_counts(self):
+        image_counts = {}
+        for i in self.proportions:
+            q = int(
+                (
+                    Decimal(str(self.proportions[i])) * Decimal(self.target_total)
+                ).quantize(0, rounding=ROUND_HALF_UP)
+            )
+            image_counts[i] = q
+            print(f"{i}: {q}")
+
+        self.image_counts = image_counts
+        return image_counts
+
+    # ---------------------------------------------------------
+    # Fetch Images
+    # ---------------------------------------------------------
+    def fetch_images(self, output_json=None):
+        existing = self._existing_cases_on_disk()
+        print(f"Existing local cases: {len(existing)}")
+
+        selected = {}
+
+        for project, target in self.image_counts.items():
+            print(f"\nQuerying {project} …")
+            tcga_cases = self._query_tcga_cases(project)
+
+            # Remove cases already on disk
+            candidates = [c for c in tcga_cases if c not in existing]
+
+            if len(candidates) < target:
+                print(
+                    f"  WARNING: requested {target}, "
+                    f"only {len(candidates)} available"
+                )
+
+            take = candidates[:target]
+
+            for case_id in take:
+                selected[case_id] = project
+
+            print(
+                f"  Selected {len(take)} new cases "
+                f"(from {len(tcga_cases)} total with SVS)"
+            )
+
+        # Write output
+        if output_json is not None:
+            with open(output_json, "w") as f:
+                json.dump(selected, f, indent=2, sort_keys=True)
+            print(f"\nDONE. Wrote {len(selected)} cases to {output_json}")
+
+        self.fetched_images = selected
+
+        print(f"\nDONE. Selected {len(selected)} cases in total.")
+
+    # ---------------------------------------------------------
+    # Download Images
+    # ---------------------------------------------------------
+    def download_images(self):
+        os.makedirs(self.DATA_DIR, exist_ok=True)
+
+        total = len(self.fetched_images)
+        downloaded = 0
+        skipped = 0
+        missing = 0
+
+        t0 = time.time()
+        for i, (case_id, project) in enumerate(self.fetched_images.items(), start=1):
+            category = project.replace("TCGA-", "")
+            out_name = f"{case_id}-{category}{FILE_EXT}"
+            out_path = os.path.join(self.DATA_DIR, out_name)
+
+            # Skip if already exists
+            if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
+                skipped += 1
+                print(f"[SKIP] {out_name} already exists " f"({i}/{total})")
+                continue
+
+            # Query TCGA
+            slides = self._query_svs_for_case(case_id)
+
+            if not slides:
+                missing += 1
+                print(f"[MISSING] No SVS found for {case_id} " f"({i}/{total})")
+                continue
+
+            # Deterministic choice: first slide
+            file_id, file_name = slides[0]
+
+            print(f"[DOWNLOADING] {case_id} → {out_name} " f"({i}/{total})")
+            try:
+                self._download_file(file_id, out_path)
+                downloaded += 1
+                t1 = time.time()
+                print(
+                    f"[PROGRESS] {downloaded} / {total} downloaded in {t1 - t0:.1f} sec ({(t1 - t0)/downloaded:.2f} sec/file)"
+                )
+            except Exception as e:
+                print(f"  ERROR downloading {case_id}: {e}")
+                if os.path.exists(out_path):
+                    os.remove(out_path)
+
+        print("\nSUMMARY")
+        print(f"  Downloaded : {downloaded}")
+        print(f"  Skipped    : {skipped}")
+        print(f"  Missing    : {missing}")
+        print(f"  Total      : {total}")
+
+    # ---------------------------------------------------------
+    # Run Whole Pipeline
     # ---------------------------------------------------------
     def run(self):
-        self.print_target_counts()
-        self.sample_cases()
-        self.download_all()
+        if self.fetched_images is None:
+            if self.image_counts is None:
+                if self.proportions is None:
+                    self.calc_img_proportions()
+                self.calc_img_counts()
+            self.fetch_images(output_json=self.fetched_images_output_json)
+        self.download_images()
+
+
+if __name__ == "__main__":
+    downloader = ImageDownloader(
+        target_total=5,
+        PROJECTS=RARE_PROJECTS,
+        fetched_images_output_json="tcga_cases_to_fetch.json",
+    )
+    downloader.run()

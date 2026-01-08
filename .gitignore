@@ -18,8 +18,18 @@ test_*.svs
 *.npy
 
 kanban.txt
+roadmap.txt
 data/*
 archive/*
+model_doc/*
 
 .DS_Store
 **/.DS_Store
+
+.env.secret
+
+**/*.svs
+**/*.png
+
+*.sh
+*.fish
